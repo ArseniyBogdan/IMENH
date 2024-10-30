@@ -10,6 +10,7 @@ from tensorflow.keras.layers import GlobalMaxPooling2D, MaxPooling2D, AveragePoo
 from tensorflow.keras import models, layers
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam, SGD, AdamW
+from tensorflow.keras.callbacks import ModelCheckpoint
 
 #Frame size of training data
 w=480
@@ -194,19 +195,55 @@ def TrainImageEnhancementModel (folderRaw,folderComp,folderRawVal,folderCompVal)
     XrawVal = XrawVal / 255.0
     XcompVal = XcompVal / 255.0
     enhancer = EnhancerModel (patchsize,patchsize)
-    learning_rate_schedule = tensorflow.keras.optimizers.schedules.ExponentialDecay(
-        initial_learning_rate=0.001,
-        decay_steps=300,
-        decay_rate=0.96)
-    optimizer=tensorflow.keras.optimizers.Adam(learning_rate=learning_rate_schedule)
-    enhancer.compile(loss='mean_squared_error',optimizer='Adam',metrics=[psnr])
+    #learning_rate_schedule = tensorflow.keras.optimizers.schedules.ExponentialDecay(
+    #    initial_learning_rate=0.001,
+    #    decay_steps=300,
+    #    decay_rate=0.96)
+    #optimizer=tensorflow.keras.optimizers.Adam(learning_rate=learning_rate_schedule)
+    optimizer = tensorflow.keras.optimizers.Adam()
+    print(optimizer.get_config())
+    #{'name': 'adam', 'learning_rate': 0.0010000000474974513, 'weight_decay': None, 'clipnorm': None,
+    # 'global_clipnorm': None, 'clipvalue': None, 'use_ema': False, 'ema_momentum': 0.99,
+    # 'ema_overwrite_frequency': None, 'loss_scale_factor': None, 'gradient_accumulation_steps': None, 'beta_1': 0.9,
+    # 'beta_2': 0.999, 'epsilon': 1e-07, 'amsgrad': False}
+
+    optimizer = tensorflow.keras.optimizers.Adam(
+        learning_rate=0.0001,
+        beta_1=0.9,
+        beta_2=0.999,
+        epsilon=1e-07,
+        weight_decay=None,
+        clipnorm=None,
+        global_clipnorm=None,
+        clipvalue=None,
+        use_ema=False,
+        ema_momentum=0.99,
+        ema_overwrite_frequency=None,
+        loss_scale_factor=None,
+        gradient_accumulation_steps=None,
+        amsgrad=False)
+    print(optimizer.get_config())
+    enhancer.compile(loss='mean_squared_error',optimizer=optimizer,metrics=[psnr])
     #enhancer.compile(loss='mean_squared_error', optimizer=optimizer, metrics=[psnr])
 
-    NumEpochs=50
+    # Путь для сохранения модели
+    checkpoint_filepath = 'best_model.weights.h5'
+
+    # Определяем колбэк для сохранения наилучшей модели
+    checkpoint_callback = ModelCheckpoint(
+        filepath=checkpoint_filepath,  # куда сохраняем веса
+        monitor='val_loss',  # метрика для отслеживания
+        save_best_only=True,  # сохраняем только наилучшие веса
+        save_weights_only=True,  # сохраняем только веса (не архитектуру)
+        mode='min',  # минимизируем значение метрики
+        verbose=1  # вывод информации в процессе обучения
+    )
+
+    NumEpochs=200
     #enhancer.load_weights('enhancer.weights.h5')
     #with tensorflow.device('gpu'):
-    with tensorflow.device('cpu'):
-        hist = enhancer.fit(Xcomp, Xraw, epochs=NumEpochs, batch_size=128, verbose=1,validation_data=(XcompVal, XrawVal))
+    hist = enhancer.fit(Xcomp, Xraw, epochs=NumEpochs, batch_size=128, verbose=1,
+                            validation_data=(XcompVal, XrawVal),callbacks=[checkpoint_callback])
     enhancer.save_weights('enhancer.weights.h5')
 
     return enhancer
@@ -351,11 +388,11 @@ def ShowFramePSNRPerformance (folderyuv,foldercomp,VideoIndex,framesmax,fw,fh):
 
 
 
-TrainMode = 1
+TrainMode = 0
 PrepareDataSetFromYUV=1
 
 if TrainMode==1:
-    if PrepareDataSetFromYUV==1:
+    if PrepareDataSetFromYUV==0:
         FromFolderYuvToFolderPNG (testfolderRawYuv,testfolderRawPng,w,h)
         FromFolderYuvToFolderPNG (testfolderCompYuv,testfolderCompPng,w,h)
         FromFolderYuvToFolderPNG (trainfolderRawYuv,trainfolderRawPng,w,h)
