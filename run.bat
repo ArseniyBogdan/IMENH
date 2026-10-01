@@ -1,2 +1,2 @@
-python QECNNYUV.py
+python qecnn.py
 pause
