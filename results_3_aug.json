@@ -1,6 +1,6 @@
 {
   "success": true,
-  "psnr_enh": 24.8434723079279,
-  "time_spent": 17.251575231552124,
-  "peak_gpu_memory_gb": 0.7133464813232422
+  "psnr_enh": 24.8471463334479,
+  "time_spent": 219.41997122764587,
+  "peak_gpu_memory_gb": 0.0
 }
