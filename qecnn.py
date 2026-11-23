@@ -66,8 +66,6 @@ w = 480
 h = 320
 max_samples_train = 61600   # все тайлы: 200 кадров x 308 (было 20000)
 max_samples_validate = 2000
-TrainMode = 0
-PrepareDataSetFromYUV = 0
 Augment = 0
 suffix = 'aug' if Augment else 'noaug'
 
@@ -279,60 +277,72 @@ def InferenceImageEnhancementModel(weights_path=None):
 
 
 def main():
-    global TrainMode, PrepareDataSetFromYUV, Augment, suffix
+    global Augment, suffix
 
     parser = argparse.ArgumentParser(
         description='qecnn: улучшение качества сжатых изображений')
     parser.add_argument('--prepare', action='store_true',
                         help='нарезать YUV в PNG-тайлы')
-    parser.add_argument('--train', action='store_true',
-                        help='обучить модель')
-    parser.add_argument('--augment', action='store_true',
-                        help='аугментация (rot90 + флип)')
+    parser.add_argument('--train-without-augment', action='store_true',
+                        help='обучить модель без аугментации')
+    parser.add_argument('--train-with-augment', action='store_true',
+                        help='обучить модель с аугментацией')
+    parser.add_argument('--eval', action='store_true',
+                        help='посчитать метрики моделей')
     args = parser.parse_args()
 
-    PrepareDataSetFromYUV = int(args.prepare)
-    TrainMode = int(args.train)
-    Augment = int(args.augment)
-    suffix = 'aug' if Augment else 'noaug'
+    if args.train_with_augment and args.train_without_augment:
+        parser.error('выберите один вариант обучения')
+    if not (args.prepare or args.eval or
+            args.train_with_augment or args.train_without_augment):
+        parser.print_help()
+        return
 
-    sys.stdout.reconfigure(line_buffering=True)   
+    sys.stdout.reconfigure(line_buffering=True)
     start_time = time.time()
     print("=== Image enhancing script started ===", flush=True)
-       
-    if PrepareDataSetFromYUV == 1:
+
+    if args.prepare:
         support.tilesFromYuv(testfolderRawYuv,  testfolderRawPng,  w, h, patchsize, patchstep)
         support.tilesFromYuv(testfolderCompYuv, testfolderCompPng, w, h, patchsize, patchstep)
         support.tilesFromYuv(trainfolderRawYuv,  trainfolderRawPng,  w, h, patchsize, patchstep)
         support.tilesFromYuv(trainfolderCompYuv, trainfolderCompPng, w, h, patchsize, patchstep)
 
-    if TrainMode == 1:
-        TrainImageEnhancementModel(trainfolderRawPng, trainfolderCompPng,testfolderRawPng,  testfolderCompPng)
+    if args.train_with_augment or args.train_without_augment:
+        Augment = 1 if args.train_with_augment else 0
+        suffix = 'aug' if Augment else 'noaug'
+        TrainImageEnhancementModel(trainfolderRawPng, trainfolderCompPng,
+                                   testfolderRawPng, testfolderCompPng)
 
-    enhancer = InferenceImageEnhancementModel()
-    psnr_enh = support.ShowFramePSNRPerformance(testfolderRawYuv, testfolderCompYuv, 0, 100, w, h, enhancer,TrainMode)
-    
-    end_time = time.time()
-    time_spent = end_time - start_time
-    
-    peak_gpu_memory_gb = 0.0
-    if torch.cuda.is_available():
-        peak_gpu_memory_gb = torch.cuda.max_memory_allocated() / (1024 ** 3)
-    
-    results = {
-        "success": True,
-        "psnr_enh": float(psnr_enh),
-        "time_spent": float(time_spent),
-        "peak_gpu_memory_gb": float(peak_gpu_memory_gb)
-    }
-    
-    with open(f"results_3_{suffix}.json", "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=2)
-    
-    print(f"PSNR Enhancement: {psnr_enh:.3f} dB")
-    print(f"Time spent: {time_spent:.2f} s")
-    print(f"Peak GPU memory: {peak_gpu_memory_gb:.3f} GB")
-    print(f"Results saved to results_3_{suffix}.json")
+    if args.eval:
+        for suf in ('noaug', 'aug'):
+            weights_path = f'best_model2026_3_{suf}.pth'
+            if not os.path.exists(weights_path):
+                print(f'Нет модели {weights_path}, пропускаю')
+                continue
+            enhancer = InferenceImageEnhancementModel(weights_path)
+            psnr_enh = support.ShowFramePSNRPerformance(
+                testfolderRawYuv, testfolderCompYuv, 0, 100, w, h, enhancer, 0)
+
+            time_spent = time.time() - start_time
+            peak_gpu_memory_gb = 0.0
+            if torch.cuda.is_available():
+                peak_gpu_memory_gb = torch.cuda.max_memory_allocated() / (1024 ** 3)
+
+            results = {
+                "success": True,
+                "psnr_enh": float(psnr_enh),
+                "time_spent": float(time_spent),
+                "peak_gpu_memory_gb": float(peak_gpu_memory_gb)
+            }
+
+            with open(f"results_3_{suf}.json", "w", encoding="utf-8") as f:
+                json.dump(results, f, indent=2)
+
+            print(f"PSNR Enhancement ({suf}): {psnr_enh:.3f} dB")
+            print(f"Time spent: {time_spent:.2f} s")
+            print(f"Peak GPU memory: {peak_gpu_memory_gb:.3f} GB")
+            print(f"Results saved to results_3_{suf}.json")
 
 
 if __name__ == '__main__':

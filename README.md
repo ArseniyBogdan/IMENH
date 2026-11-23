@@ -14,36 +14,45 @@ python -m venv .venv
 поставьте его отдельно до остальных пакетов:
 `.venv\Scripts\pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121`.
 
+## Команды
+
+| Флаг | Что делает |
+|---|---|
+| `--prepare` | нарезать YUV в PNG-тайлы |
+| `--train-without-augment` | обучить модель без аугментации |
+| `--train-with-augment` | обучить модель с аугментацией |
+| `--eval` | посчитать метрики моделей |
+
 ## Обучение
 
-Флаги: `--prepare` — нарезать YUV в PNG-тайлы, `--train` — обучить,
-`--augment` — включить аугментацию. Флаг указан — действие включено,
-не указан — выключено.
-
-### 1. Модель с аугментацией
+Нарезка (один раз, ~5–8 мин, ~1.5 ГБ):
 
 ```
-python qecnn.py --prepare --train --augment
+python qecnn.py --prepare
 ```
 
-Нарезка выполняется один раз (~5–8 мин, ~1.5 ГБ). Результат:
-`best_model2026_3_aug.pth`, `results_3_aug.json`.
-
-### 2. Модель без аугментации
+Модель без аугментации:
 
 ```
-python qecnn.py --train
+python qecnn.py --train-without-augment
 ```
 
-Если тайлы ещё не нарезаны, добавьте `--prepare`. Результат:
-`best_model2026_3_noaug.pth`, `results_3_noaug.json`.
-
-## Проверка готовой модели
+Модель с аугментацией:
 
 ```
-python qecnn.py              # модель без аугментации
-python qecnn.py --augment    # модель с аугментацией
+python qecnn.py --train-with-augment
 ```
+
+Результат: `best_model2026_3_noaug.pth` / `best_model2026_3_aug.pth`.
+
+## Метрики
+
+```
+python qecnn.py --eval
+```
+
+Считает PSNR обеих моделей, печатает значения и обновляет
+`results_3_noaug.json` и `results_3_aug.json`.
 
 ## Время
 
