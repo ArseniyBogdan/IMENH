@@ -1,7 +1,14 @@
+# qecnn.py — модель улучшения качества сжатых изображений.
+# Отличия от исходной версии:
+#   1) читаются ВСЕ кадры train-файла (support.tilesFromYuv);
+#   2) аугментация батча: rot90 + горизонтальный флип (AugmentBatch).
+
 import os
 import sys
+import argparse
 import json
 import time
+import random
 import numpy as np
 import cv2
 import torch
@@ -57,10 +64,12 @@ epsilon              = float(params["epsilon"])
 
 w = 480
 h = 320
-max_samples_train = 20000
+max_samples_train = 61600   # все тайлы: 200 кадров x 308 (было 20000)
 max_samples_validate = 2000
 TrainMode = 0
 PrepareDataSetFromYUV = 0
+Augment = 1
+suffix = 'aug' if Augment else 'noaug'
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 print(f'Using device: {device}')
@@ -69,14 +78,25 @@ if torch.cuda.is_available():
     torch.cuda.reset_peak_memory_stats()
 
 testfolderRawYuv   = './testrawyuv/'
-testfolderRawPng   = './testrawpng/'
+testfolderRawPng   = './testrawpng3/'
 testfolderCompYuv  = './testcompyuv/'
-testfolderCompPng  = './testcomppng/'
+testfolderCompPng  = './testcomppng3/'
 trainfolderRawYuv  = './trainrawyuv/'
-trainfolderRawPng  = './trainrawpng/'
+trainfolderRawPng  = './trainrawpng3/'
 trainfolderCompYuv = './traincompyuv/'
-trainfolderCompPng = './traincomppng/'
+trainfolderCompPng = './traincomppng3/'
 
+
+def AugmentBatch(x, y):
+    # Случайный поворот на 90° и/или горизонтальный флип; одинаково для пары.
+    k = random.randrange(4)
+    if k:
+        x = torch.rot90(x, k, dims=(2, 3))
+        y = torch.rot90(y, k, dims=(2, 3))
+    if random.random() < 0.5:
+        x = torch.flip(x, dims=(3,))
+        y = torch.flip(y, dims=(3,))
+    return x, y
 
 def same_pad(k):
     return (k - 1) // 2
@@ -199,6 +219,8 @@ def TrainImageEnhancementModel(folderRaw, folderComp, folderRawVal, folderCompVa
         for comp, raw in train_loader:
             comp = comp.to(device, non_blocking=True)
             raw  = raw.to(device,  non_blocking=True)
+            if Augment:
+                comp, raw = AugmentBatch(comp, raw)
             optimizer.zero_grad()
             out  = model(comp)
             loss = criterion(out, raw)
@@ -233,8 +255,8 @@ def TrainImageEnhancementModel(folderRaw, folderComp, folderRawVal, folderCompVa
 
         if val_loss < best_val_loss:
             best_val_loss = val_loss
-            torch.save(model.state_dict(), 'best_model2026.pth')
-            print('  -> val_loss improved, saved best_model2026.pth')
+            torch.save(model.state_dict(), f'best_model2026_3_{suffix}.pth')
+            print(f'  -> val_loss improved, saved best_model2026_3_{suffix}.pth')
 
         if scheduler is not None:
             scheduler.step()
@@ -243,11 +265,13 @@ def TrainImageEnhancementModel(folderRaw, folderComp, folderRawVal, folderCompVa
             print(f'Training time budget exhausted after {epoch+1} epochs, stopping.')
             break
 
-    torch.save(model.state_dict(), 'enhancer2026.pth')
+    torch.save(model.state_dict(), f'enhancer2026_3_{suffix}.pth')
     return model
 
 
-def InferenceImageEnhancementModel(weights_path='best_model2026.pth'):
+def InferenceImageEnhancementModel(weights_path=None):
+    if weights_path is None:
+        weights_path = f'best_model2026_3_{suffix}.pth'
     model = build_enhancer()
     model.load_state_dict(torch.load(weights_path, map_location=device))
     model.eval()
@@ -255,15 +279,32 @@ def InferenceImageEnhancementModel(weights_path='best_model2026.pth'):
 
 
 def main():
+    global TrainMode, PrepareDataSetFromYUV, Augment, suffix
+
+    parser = argparse.ArgumentParser(
+        description='qecnn: улучшение качества сжатых изображений')
+    parser.add_argument('--prepare', type=int, default=PrepareDataSetFromYUV,
+                        help='1 — нарезать YUV в PNG-тайлы')
+    parser.add_argument('--train', type=int, default=TrainMode,
+                        help='1 — обучить модель')
+    parser.add_argument('--augment', type=int, default=Augment,
+                        help='1 — аугментация (rot90 + флип)')
+    args = parser.parse_args()
+
+    PrepareDataSetFromYUV = args.prepare
+    TrainMode = args.train
+    Augment = args.augment
+    suffix = 'aug' if Augment else 'noaug'
+
     sys.stdout.reconfigure(line_buffering=True)   
     start_time = time.time()
     print("=== Image enhancing script started ===", flush=True)
        
     if PrepareDataSetFromYUV == 1:
-        support.FromFolderYuvToFolderPNG(testfolderRawYuv,  testfolderRawPng,  w, h, patchsize, patchstep)
-        support.FromFolderYuvToFolderPNG(testfolderCompYuv, testfolderCompPng, w, h, patchsize, patchstep)
-        support.FromFolderYuvToFolderPNG(trainfolderRawYuv,  trainfolderRawPng,  w, h, patchsize, patchstep)
-        support.FromFolderYuvToFolderPNG(trainfolderCompYuv, trainfolderCompPng, w, h, patchsize, patchstep)
+        support.tilesFromYuv(testfolderRawYuv,  testfolderRawPng,  w, h, patchsize, patchstep)
+        support.tilesFromYuv(testfolderCompYuv, testfolderCompPng, w, h, patchsize, patchstep)
+        support.tilesFromYuv(trainfolderRawYuv,  trainfolderRawPng,  w, h, patchsize, patchstep)
+        support.tilesFromYuv(trainfolderCompYuv, trainfolderCompPng, w, h, patchsize, patchstep)
 
     if TrainMode == 1:
         TrainImageEnhancementModel(trainfolderRawPng, trainfolderCompPng,testfolderRawPng,  testfolderCompPng)
@@ -285,13 +326,13 @@ def main():
         "peak_gpu_memory_gb": float(peak_gpu_memory_gb)
     }
     
-    with open("results.json", "w", encoding="utf-8") as f:
+    with open(f"results_3_{suffix}.json", "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2)
     
     print(f"PSNR Enhancement: {psnr_enh:.3f} dB")
     print(f"Time spent: {time_spent:.2f} s")
     print(f"Peak GPU memory: {peak_gpu_memory_gb:.3f} GB")
-    print("Results saved to results.json")
+    print(f"Results saved to results_3_{suffix}.json")
 
 
 if __name__ == '__main__':

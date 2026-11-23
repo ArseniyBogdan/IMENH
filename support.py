@@ -1,4 +1,5 @@
 import os
+import random
 import cv2
 import PIL
 import matplotlib.pyplot as plt
@@ -287,3 +288,54 @@ def yuv_save(filename, fw, fh, numfrm,Y,U,V):
         U[i].astype('uint8').tofile(fp)
         V[i].astype('uint8').tofile(fp)
     fp.close()
+
+
+def tilesFromYuv(folderyuv, folderpng, fw, fh, patchsize, patchstep, seed=0):
+    """YUV -> PNG-тайлы по ВСЕМ кадрам файла (без лимита в 100 кадров).
+
+    Имена файлов — случайный ранг, чтобы LoadImagesFromFolderTorch
+    (sorted()[:N]) брал равномерную подвыборку по всем кадрам,
+    а не только из начала файла.
+    """
+    os.makedirs(folderpng, exist_ok=True)
+    for name in os.listdir(folderpng):
+        p = os.path.join(folderpng, name)
+        if os.path.isfile(p) and not name.startswith('.'):
+            os.remove(p)
+
+    name = sorted(f for f in os.listdir(folderyuv) if f.endswith('.yuv'))[0]
+    path = os.path.join(folderyuv, name)
+    fwuv, fhuv = fw // 2, fh // 2
+    frame_bytes = fw * fh + 2 * fwuv * fhuv
+    frames = os.path.getsize(path) // frame_bytes          # все кадры
+
+    numdx = (fw - patchsize) // patchstep + 1
+    numdy = (fh - patchsize) // patchstep + 1
+    total = frames * numdx * numdy
+    order = list(range(total))
+    random.Random(seed).shuffle(order)
+
+    with open(path, 'rb') as fp:
+        for f in range(frames):
+            buf = fp.read(frame_bytes)
+            if len(buf) < frame_bytes:
+                print(f'Corrupted frame {f} in {path}')
+                break
+            Y = np.frombuffer(buf[:fw * fh], dtype=np.uint8).reshape((fh, fw))
+            U = np.frombuffer(buf[fw * fh:fw * fh + fwuv * fhuv],
+                              dtype=np.uint8).reshape((fhuv, fwuv))
+            V = np.frombuffer(buf[fw * fh + fwuv * fhuv:],
+                              dtype=np.uint8).reshape((fhuv, fwuv))
+            r, g, b = yuv2rgb(Y, U, V, fw, fh)
+
+            for ii, i in enumerate(range(0, fw - patchsize + 1, patchstep)):
+                for jj, j in enumerate(range(0, fh - patchsize + 1, patchstep)):
+                    t = (f * numdy + jj) * numdx + ii
+                    tile = np.empty((patchsize, patchsize, 3), dtype=np.uint8)
+                    tile[:, :, 0] = b[j:j + patchsize, i:i + patchsize]
+                    tile[:, :, 1] = g[j:j + patchsize, i:i + patchsize]
+                    tile[:, :, 2] = r[j:j + patchsize, i:i + patchsize]
+                    cv2.imwrite(os.path.join(folderpng, f'{order[t]:06d}.png'), tile)
+
+    print(f'{path}: frames={frames}, tiles={total} -> {folderpng}')
+

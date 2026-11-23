@@ -1,0 +1,8 @@
+# Зависимости проекта (проверено на Python 3.12).
+# torch: для CUDA-сборки установите отдельно:
+#   pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121
+torch==2.4.1
+numpy==1.26.4
+opencv-python==4.10.0.84
+matplotlib==3.9.2
+pillow==10.4.0
