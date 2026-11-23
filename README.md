@@ -16,13 +16,14 @@ python -m venv .venv
 
 ## Обучение
 
-Параметры передаются аргументами командной строки: `--prepare` (нарезать YUV → PNG),
-`--train` (обучить), `--augment` (аугментация). `1` — включено, `0` — выключено.
+Флаги: `--prepare` — нарезать YUV в PNG-тайлы, `--train` — обучить,
+`--augment` — включить аугментацию. Флаг указан — действие включено,
+не указан — выключено.
 
 ### 1. Модель с аугментацией
 
 ```
-python qecnn.py --prepare 1 --train 1 --augment 1
+python qecnn.py --prepare --train --augment
 ```
 
 Нарезка выполняется один раз (~5–8 мин, ~1.5 ГБ). Результат:
@@ -31,18 +32,18 @@ python qecnn.py --prepare 1 --train 1 --augment 1
 ### 2. Модель без аугментации
 
 ```
-python qecnn.py --prepare 0 --train 1 --augment 0
+python qecnn.py --train
 ```
 
-Результат: `best_model2026_3_noaug.pth`, `results_3_noaug.json`.
+Если тайлы ещё не нарезаны, добавьте `--prepare`. Результат:
+`best_model2026_3_noaug.pth`, `results_3_noaug.json`.
 
 ## Проверка готовой модели
 
 ```
-python qecnn.py --prepare 0 --train 0 --augment 1
+python qecnn.py              # модель без аугментации
+python qecnn.py --augment    # модель с аугментацией
 ```
-
-Для модели без аугментации — `--augment 0`.
 
 ## Время
 

@@ -68,7 +68,7 @@ max_samples_train = 61600   # все тайлы: 200 кадров x 308 (был�
 max_samples_validate = 2000
 TrainMode = 0
 PrepareDataSetFromYUV = 0
-Augment = 1
+Augment = 0
 suffix = 'aug' if Augment else 'noaug'
 
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -283,17 +283,17 @@ def main():
 
     parser = argparse.ArgumentParser(
         description='qecnn: улучшение качества сжатых изображений')
-    parser.add_argument('--prepare', type=int, default=PrepareDataSetFromYUV,
-                        help='1 — нарезать YUV в PNG-тайлы')
-    parser.add_argument('--train', type=int, default=TrainMode,
-                        help='1 — обучить модель')
-    parser.add_argument('--augment', type=int, default=Augment,
-                        help='1 — аугментация (rot90 + флип)')
+    parser.add_argument('--prepare', action='store_true',
+                        help='нарезать YUV в PNG-тайлы')
+    parser.add_argument('--train', action='store_true',
+                        help='обучить модель')
+    parser.add_argument('--augment', action='store_true',
+                        help='аугментация (rot90 + флип)')
     args = parser.parse_args()
 
-    PrepareDataSetFromYUV = args.prepare
-    TrainMode = args.train
-    Augment = args.augment
+    PrepareDataSetFromYUV = int(args.prepare)
+    TrainMode = int(args.train)
+    Augment = int(args.augment)
     suffix = 'aug' if Augment else 'noaug'
 
     sys.stdout.reconfigure(line_buffering=True)   
