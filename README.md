@@ -8,7 +8,7 @@
 
 ## Перед запуском
 
-В репозитории только код и **несжатые** изображения. Положите рядом с кодом:
+В репозитории только код. Положите рядом с кодом:
 
 ```
 trainrawyuv/BSD500train.yuv
@@ -28,8 +28,21 @@ yuvcompression\TAppDecoder.exe -b val.hevc -o testcompyuv\BSD500valc.yuv
 ```
 
 Получатся `traincompyuv/BSD500trainc.yuv` и `testcompyuv/BSD500valc.yuv` — без них
-не работают `--prepare`, `--train-*` и `--eval`. Тот же рецепт для train-пары
-лежит в `yuvcompression/run_enc_dec_35_BSDintra.bat`.
+не работают `--prepare`, `--train-*` и `--eval`. 
+
+Для этой же цели отдельно лежат скрипты для windows в `yuvcompression/*.bat`.
+
+Запускать их из корня репозитория (или двойным щелчком):
+
+```
+yuvcompression\run_enc_dec_35_BSDintra_train.bat
+yuvcompression\run_enc_dec_35_BSDintra_test.bat
+```
+
+Первый создаёт `yuvcompression\train.hevc` и `traincompyuv\BSD500trainc.yuv`,
+второй — `yuvcompression\val.hevc` и `testcompyuv\BSD500valc.yuv`.
+Скрипты сами создают нужные папки и используют пути относительно своего
+расположения, поэтому запускать их можно откуда угодно.
 
 ## Установка
 
