@@ -46,14 +46,18 @@ yuvcompression\run_enc_dec_35_BSDintra_test.bat
 
 ## Установка
 
+Нужен **Python 3.10–3.12**: у `torch==2.4.1` нет сборок для Python 3.13 и новее.
+Проверить установленные версии: `py -0p`.
+
 ```
-python -m venv .venv
+py -3.12 -m venv .venv
 .venv\Scripts\pip install -r requirements.txt
 ```
 
-Версии зафиксированы в `requirements.txt`. Для CUDA-сборки torch (обучение быстрее)
+Версии зафиксированы в `requirements.txt`. Для CUDA-сборки torch (нужна NVIDIA GPU)
 поставьте его отдельно до остальных пакетов:
 `.venv\Scripts\pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121`.
+Без NVIDIA GPU берите CPU-сборку (`.../whl/cpu`) — она в разы меньше.
 
 ## Команды
 
