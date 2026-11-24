@@ -287,8 +287,9 @@ def main():
                         help='обучить модель без аугментации')
     parser.add_argument('--train-with-augment', action='store_true',
                         help='обучить модель с аугментацией')
-    parser.add_argument('--eval', action='store_true',
-                        help='посчитать метрики моделей')
+    parser.add_argument('--eval', nargs='?', const='all', default=None,
+                        choices=('all', 'noaug', 'aug'),
+                        help='посчитать метрики: all (обе), noaug или aug')
     args = parser.parse_args()
 
     if args.train_with_augment and args.train_without_augment:
@@ -315,7 +316,8 @@ def main():
                                    testfolderRawPng, testfolderCompPng)
 
     if args.eval:
-        for suf in ('noaug', 'aug'):
+        suffixes = ('noaug', 'aug') if args.eval == 'all' else (args.eval,)
+        for suf in suffixes:
             weights_path = f'best_model2026_3_{suf}.pth'
             if not os.path.exists(weights_path):
                 print(f'Нет модели {weights_path}, пропускаю')

@@ -46,18 +46,17 @@ yuvcompression\run_enc_dec_35_BSDintra_test.bat
 
 ## Установка
 
-Нужен **Python 3.10–3.12**: у `torch==2.4.1` нет сборок для Python 3.13 и новее.
-Проверить установленные версии: `py -0p`.
-
-```
-py -3.12 -m venv .venv
-.venv\Scripts\pip install -r requirements.txt
-```
+Нужен **Python 3.10–3.12**.
 
 Версии зафиксированы в `requirements.txt`. Для CUDA-сборки torch (нужна NVIDIA GPU)
 поставьте его отдельно до остальных пакетов:
 `.venv\Scripts\pip install torch==2.4.1 --index-url https://download.pytorch.org/whl/cu121`.
-Без NVIDIA GPU берите CPU-сборку (`.../whl/cpu`) — она в разы меньше.
+
+Уже после остальные зависимости:
+```
+py -3.10 -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+```
 
 ## Команды
 
@@ -91,9 +90,19 @@ python qecnn.py --train-with-augment
 Результат: `best_model2026_3_noaug.pth` / `best_model2026_3_aug.pth`.
 
 ## Метрики
-
+Снятие метрик с модели, обученной с аугментацией
 ```
-python qecnn.py --eval
+python qecnn.py --eval aug
+```
+
+Снятие метрик с модели, обученной без аугментации
+```
+python qecnn.py --eval noaug
+```
+
+Снятие метрик с обеих моделей
+```
+python qecnn.py --eval all
 ```
 
 Считает PSNR обеих моделей, печатает значения и обновляет
