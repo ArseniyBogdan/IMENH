@@ -6,6 +6,31 @@
 Готовые модели уже лежат в репозитории: `best_model2026_3_aug.pth` — 24.847 дБ,
 `best_model2026_3_noaug.pth` — 24.797 дБ, базовая `best_model2026.pth` — 24.738 дБ.
 
+## Перед запуском
+
+В репозитории только код и **несжатые** изображения. Положите рядом с кодом:
+
+```
+trainrawyuv/BSD500train.yuv
+testrawyuv/BSD500val.yuv
+yuvcompression/x265.exe
+yuvcompression/TAppDecoder.exe
+```
+
+Затем сожмите изображения (x265, CRF 35, all-intra) и декодируйте обратно:
+
+```
+mkdir traincompyuv testcompyuv
+yuvcompression\x265.exe --input-res 480x320 --fps 30 --input trainrawyuv\BSD500train.yuv -o train.hevc --crf 35 --keyint 1 --preset medium
+yuvcompression\TAppDecoder.exe -b train.hevc -o traincompyuv\BSD500trainc.yuv
+yuvcompression\x265.exe --input-res 480x320 --fps 30 --input testrawyuv\BSD500val.yuv -o val.hevc --crf 35 --keyint 1 --preset medium
+yuvcompression\TAppDecoder.exe -b val.hevc -o testcompyuv\BSD500valc.yuv
+```
+
+Получатся `traincompyuv/BSD500trainc.yuv` и `testcompyuv/BSD500valc.yuv` — без них
+не работают `--prepare`, `--train-*` и `--eval`. Тот же рецепт для train-пары
+лежит в `yuvcompression/run_enc_dec_35_BSDintra.bat`.
+
 ## Установка
 
 ```
